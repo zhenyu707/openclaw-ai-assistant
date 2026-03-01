@@ -283,19 +283,19 @@ The webhook token is stored in `~/.openclaw/.env` as `WEBHOOK_TOKEN`. It is dist
 
 | File | Purpose |
 |---|---|
-| `~/.openclaw/openclaw.json` | Main gateway + agent + tools config |
-| `~/.openclaw/.env` | All secrets: API keys, webhook tokens, HRIS URL |
-| `~/.openclaw/.env.template` | Template for `.env` — copy and fill in |
-| `~/.openclaw/workspace-hr/SOUL.md` | HR agent persona and ethical boundaries |
-| `~/.openclaw/workspace-hr/AGENTS.md` | Operating instructions and escalation rules |
-| `~/.openclaw/workspace-hr/TOOLS.md` | Tool documentation injected into system prompt |
-| `~/.openclaw/workspace-hr/USER.md` | Company context (name, org structure, etc.) |
-| `~/.openclaw/workspace-hr/MEMORY.md` | Durable facts: policies, org, key contacts |
-| `~/.openclaw/workspace-hr/HEARTBEAT.md` | Periodic proactive checks (every 30 min) |
-| `~/.openclaw/workspace-hr/policies/` | Company policy documents (leave, benefits, CoC, etc.) |
-| `~/.openclaw/workspace-hr/skills/` | All 6 skill directories |
-| `~/.openclaw/setup-crons.sh` | Registers all scheduled cron jobs |
-| `~/.openclaw/QUICKSTART.md` | Condensed startup reference |
+| `~/.openclaw/openclaw.json` | Main gateway + agent + tools config (runtime, not in git) |
+| `~/.openclaw/.env` | All secrets: API keys, webhook tokens, HRIS URL (never commit) |
+| `.env.template` | Template for `.env` — copy to `~/.openclaw/.env` and fill in |
+| `workspace-hr/SOUL.md` | HR agent persona and ethical boundaries |
+| `workspace-hr/AGENTS.md` | Operating instructions and escalation rules |
+| `workspace-hr/TOOLS.md` | Tool documentation injected into system prompt |
+| `workspace-hr/USER.md` | Company context (name, org structure, etc.) |
+| `workspace-hr/MEMORY.md` | Durable facts: policies, org, key contacts |
+| `workspace-hr/HEARTBEAT.md` | Periodic proactive checks (every 30 min) |
+| `workspace-hr/policies/` | Company policy documents (leave, benefits, CoC, etc.) |
+| `workspace-hr/skills/` | All 6 skill directories |
+| `setup-crons.sh` | Registers all scheduled cron jobs |
+| `QUICKSTART.md` | Condensed startup reference |
 | `/tmp/openclaw-gateway.log` | Gateway log (background mode) |
 
 ### Config key notes
@@ -315,7 +315,7 @@ Before connecting to production channels, complete these steps:
 - [ ] **2. Fill policy placeholders** — replace all `[X]` markers in the 5 policy docs under `workspace-hr/policies/`
 - [ ] **3. Update `USER.md`** — add real company name, org structure, key contacts
 - [ ] **4. Replace placeholder tokens** — update gateway token and webhook token in `openclaw.json` and `.env` with cryptographically random values
-- [ ] **5. Register cron jobs** — run `~/.openclaw/setup-crons.sh` to activate scheduled reports
+- [ ] **5. Register cron jobs** — run `./setup-crons.sh` (from this repo root) to activate scheduled reports
 - [ ] **6. Connect channels** — run `openclaw connect slack` and/or `openclaw connect teams` and complete the OAuth flow
 
 ---
@@ -384,35 +384,23 @@ If missing, check that each skill directory contains a valid `SKILL.md` with the
 
 ## Project Structure
 
-Actual deployed file tree (as of 2026-03-01):
+Source files live in this git repo. The OpenClaw runtime home (`~/.openclaw/`) holds symlinks to the workspace directories here, plus its own runtime state.
 
 ```
-~/.openclaw/
-├── openclaw.json                          ← Main config (gateway, agents, tools, hooks)
-├── openclaw.json.bak                      ← Auto-backup on each config write
-├── .env                                   ← Secrets: API keys, tokens, HRIS URL
-├── .env.template                          ← Copy this to create .env
-├── QUICKSTART.md                          ← Condensed startup reference
-├── setup-crons.sh                         ← Registers all cron jobs
-├── cron/
-│   └── jobs.json                          ← Active cron job definitions
-├── agents/
-│   ├── main/sessions/                     ← Conversation history for main agent
-│   ├── hr-employee-bot/sessions/          ← Conversation history (employee sessions)
-│   └── hr-manager-bot/sessions/           ← Conversation history (manager sessions)
-├── logs/
-│   └── config-audit.jsonl                 ← Audit log of config changes
-├── memory/
-│   └── main.sqlite                        ← Agent long-term memory (SQLite)
+~/Nero/openclaw-operation/          ← THIS REPO (version-controlled)
+├── .env.template                   ← Copy to ~/.openclaw/.env and fill in secrets
+├── setup-crons.sh                  ← Registers all scheduled cron jobs
+├── QUICKSTART.md                   ← Condensed startup reference
+├── README.md
 │
-├── workspace-hr/                          ← Main HR agent workspace
-│   ├── SOUL.md                            ← HR persona, ethics, tone, boundaries
-│   ├── AGENTS.md                          ← Operating instructions, escalation rules
-│   ├── TOOLS.md                           ← Tool documentation for agent
-│   ├── USER.md                            ← Company context (fill in real values)
-│   ├── MEMORY.md                          ← Durable facts: org structure, key contacts
-│   ├── HEARTBEAT.md                       ← Periodic proactive checks (every 30 min)
-│   ├── IDENTITY.md                        ← Branding ("HRBot by [Company]")
+├── workspace-hr/                   ← Main HR agent workspace
+│   ├── SOUL.md                     ← HR persona, ethics, tone, boundaries
+│   ├── AGENTS.md                   ← Operating instructions, escalation rules
+│   ├── TOOLS.md                    ← Tool documentation for agent
+│   ├── USER.md                     ← Company context (fill in real values)
+│   ├── MEMORY.md                   ← Durable facts: org structure, key contacts
+│   ├── HEARTBEAT.md                ← Periodic proactive checks (every 30 min)
+│   ├── IDENTITY.md                 ← Branding ("HRBot by [Company]")
 │   ├── policies/
 │   │   ├── leave-policy.md
 │   │   ├── benefits.md
@@ -421,49 +409,30 @@ Actual deployed file tree (as of 2026-03-01):
 │   │   └── expense-policy.md
 │   └── skills/
 │       ├── leave-request-processor/
-│       │   ├── SKILL.md
-│       │   └── scripts/
-│       │       ├── submit-leave.sh
-│       │       ├── check-leave-balance.sh
-│       │       └── check-leave-status.sh
 │       ├── employee-data-lookup/
-│       │   ├── SKILL.md
-│       │   └── scripts/
-│       │       ├── lookup-employee.sh
-│       │       └── lookup-team.sh
 │       ├── hr-policy-qa/
-│       │   ├── SKILL.md
-│       │   └── references/
-│       │       └── policy-index.md
 │       ├── employee-onboarding/
-│       │   ├── SKILL.md
-│       │   └── scripts/
-│       │       ├── trigger-onboarding.sh
-│       │       └── notify-slack-welcome.sh
 │       ├── attendance-tracker/
-│       │   ├── SKILL.md
-│       │   └── scripts/
-│       │       ├── get-attendance.sh
-│       │       └── get-team-attendance.sh
 │       └── scheduled-hr-report/
-│           ├── SKILL.md
-│           └── scripts/
-│               └── weekly-stats.sh
 │
-├── workspace-hr-employee/                 ← Employee self-service agent
-│   ├── SOUL.md
-│   ├── AGENTS.md
-│   ├── TOOLS.md
-│   ├── USER.md
-│   ├── HEARTBEAT.md
-│   └── IDENTITY.md
-│
-└── workspace-hr-manager/                  ← Manager approvals + escalation agent
-    ├── SOUL.md
-    └── AGENTS.md
+├── workspace-hr-employee/          ← Employee self-service agent
+└── workspace-hr-manager/           ← Manager approvals + escalation agent
+
+~/.openclaw/                        ← Shared OpenClaw runtime (NOT in git)
+├── openclaw.json                   ← Global config: gateway, agents, tools, hooks
+├── .env                            ← All secrets for all projects (never commit)
+├── workspace-hr -> ~/Nero/openclaw-operation/workspace-hr         (symlink)
+├── workspace-hr-employee -> ~/Nero/openclaw-operation/workspace-hr-employee  (symlink)
+├── workspace-hr-manager -> ~/Nero/openclaw-operation/workspace-hr-manager   (symlink)
+├── agents/                         ← Runtime: session history (OpenClaw-managed)
+├── memory/                         ← Runtime: SQLite databases (OpenClaw-managed)
+├── cron/                           ← Runtime: cron job registry
+└── logs/                           ← Runtime: audit logs
 ```
 
-> **Note:** Skills are defined in `workspace-hr` and shared via OpenClaw's skill routing. The employee and manager workspaces contain only agent-specific persona/instruction files.
+> **Setup pattern for future OpenClaw projects:** create a new git repo in `~/Nero/`, put workspace files there, then `ln -s ~/Nero/new-project/workspace-* ~/.openclaw/`. Each project is isolated and version-controlled; `~/.openclaw/` is the shared runtime engine.
+
+> **Skills** are defined in `workspace-hr` and shared via OpenClaw's skill routing. The employee and manager workspaces contain only agent-specific persona/instruction files.
 
 ---
 
