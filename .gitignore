@@ -1,0 +1,21 @@
+# Secrets — never commit
+.env
+
+# OpenClaw internal runtime state (within workspaces)
+**/.openclaw/
+
+# Runtime memory databases
+**/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
+
+# Agent session transcripts
+sessions/
+*.jsonl
+
+# Browser automation artifacts
+.playwright-mcp/
+
+# OS noise
+.DS_Store
+Thumbs.db
