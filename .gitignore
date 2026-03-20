@@ -15,9 +15,32 @@ sessions/
 
 # Browser automation artifacts
 .playwright-mcp/
+.playwright-cli/
 
 # Test artifacts
 tests/mock-hris/__pycache__/
+tests/
+
+# Assessment files (local only)
+FINAL_ASSESSMENT.md
+GRADING_RUBRIC.md
+IMPLEMENTATION_TEST.md
+TEST_PLAN.md
+
+# Screenshots and images (local artifacts)
+*.png
+*.jpg
+*.jpeg
+
+# Memory bank (Claude Code local)
+memory-bank/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+/tmp/
 
 # OS noise
 .DS_Store

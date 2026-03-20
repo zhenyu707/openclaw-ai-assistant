@@ -1,54 +1,47 @@
-# HR AI Agent · OpenClaw
+# Multi-Department AI Agents · OpenClaw
 
-> A self-hosted, multi-agent HR assistant that handles leave requests, policy Q&A, onboarding, attendance tracking, and scheduled HR reports — running entirely on your infrastructure.
+> A self-hosted, multi-agent AI assistant platform covering **6 departments** — HR, Accounting, Marketing, Operations, Competitive Intelligence, and Inventory Management — running entirely on your infrastructure.
 
 ---
 
 ## What Is This?
 
-This project deploys a production-grade **HR AI Agent** on [OpenClaw](https://github.com/openclaw/openclaw) — an open-source, self-hosted AI assistant platform. The agent integrates with your HRIS, messaging channels (Slack/Teams), and company policy documents to give employees instant, private HR support without any data leaving your network.
+This project deploys a production-grade **multi-department AI agent system** on [OpenClaw](https://github.com/openclaw/openclaw) — an open-source, self-hosted AI assistant platform. Each department has its own trio of agents (main coordinator + user-facing bot + manager bot) with specialized skills, integrating with your enterprise systems, messaging channels (Slack/Teams), and internal documents to give employees instant, private support without any data leaving your network.
 
-**What it handles:**
+**Departments covered:**
 
-| Capability | Description |
-|---|---|
-| Leave Requests | Submit, validate balance, confirm, and track via HRIS API |
-| Policy Q&A | Answer questions from authoritative company policy docs |
-| Employee Lookup | Safely retrieve non-sensitive employee info |
-| Onboarding | Automate new-hire workflows (IT, email, calendar, Slack) |
-| Attendance | Query time-off balances and flag attendance anomalies |
-| Scheduled Reports | Daily/weekly HR summaries posted to Slack/Teams |
+| Department | Emoji | Focus |
+|---|---|---|
+| HR | 🤝 | Leave requests, policy Q&A, onboarding, attendance, scheduled reports |
+| Accounting | 💰 | Expense approvals, invoice processing, budget tracking, financial reports |
+| Marketing | 📣 | Campaign management, content calendar, analytics, brand guidelines |
+| Operations | ⚙️ | Workflow automation, resource allocation, SLA tracking, incident response |
+| Competitor Analysis | 🔍 | Market research, competitor tracking, pricing intelligence, SWOT analysis |
+| Inventory | 📦 | Stock levels, reorder alerts, warehouse management, supply chain tracking |
 
 ---
 
 ## Architecture
 
 ```
-Employees (Slack / Teams / Telegram / DM)
+Users (Slack / Teams / Telegram / DM)
             │
             ▼
   ┌─────────────────────┐
-  │   OpenClaw Gateway  │   ws://127.0.0.1:18789
-  │   (control plane)   │   auth: token
+  │   OpenClaw Gateway   │   ws://127.0.0.1:18789
+  │   (control plane)    │   auth: token
   └─────────────────────┘
             │
-    ┌───────┴────────────────┐
-    │                        │
-    ▼                        ▼
-hr-employee-bot         hr-manager-bot
-(self-service)          (approvals + escalation)
-    │
-    ├── leave-request-processor
-    ├── employee-data-lookup
-    ├── hr-policy-qa
-    ├── employee-onboarding
-    ├── attendance-tracker
-    └── scheduled-hr-report
-            │
-            ▼
-  HRIS API  http://127.0.0.1:8888
-  (mock during dev / real URL in prod)
+  ┌─────────┼─────────────────────────────────────────────┐
+  │         │         │         │         │               │
+  ▼         ▼         ▼         ▼         ▼               ▼
+ HR 🤝   Acctg 💰  Mktg 📣  Ops ⚙️   Comp 🔍        Inv 📦
+  │         │         │         │         │               │
+  ├─User    ├─User    ├─User    ├─User    ├─User          ├─User
+  └─Mgr     └─Mgr     └─Mgr     └─Mgr    └─Mgr           └─Mgr
 ```
+
+**Total agents: 18 (6 departments × 3 agents each)**
 
 **Model:** `google/gemini-2.5-flash`
 **Session isolation:** `per-channel-peer` — each employee's DM is a private session
@@ -82,11 +75,11 @@ nvm use 22
 source ~/.openclaw/.env
 
 # 2. Start the gateway
-export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"
+nvm use 22 --silent
 openclaw gateway start
 
 # 3. Open the dashboard
-# Navigate to: http://127.0.0.1:18789/?token=<your-gateway-token>
+# Navigate to: http://127.0.0.1:18789/?token=<YOUR_GATEWAY_TOKEN>
 
 # 4. Send a test message
 curl -s -X POST http://127.0.0.1:18789/hooks/agent \
@@ -111,7 +104,7 @@ openclaw gateway start
 
 ```bash
 source ~/.openclaw/.env
-export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"
+nvm use 22 --silent
 nohup openclaw gateway --force > /tmp/openclaw-gateway.log 2>&1 &
 ```
 
@@ -148,7 +141,7 @@ http://127.0.0.1:18789/?token=<YOUR_GATEWAY_TOKEN>
 > **Note:** The token is stored in your browser's `localStorage` after first visit. Bookmark the URL with the token included.
 
 From the dashboard you can:
-- Monitor active agent sessions
+- Monitor active agent sessions across all 6 departments
 - View conversation history
 - Inspect skill invocations and tool calls
 - Trigger manual agent messages
@@ -158,26 +151,17 @@ From the dashboard you can:
 
 ## Get Started Tour
 
-The dashboard includes an iOS-inspired onboarding tour that guides new users through the HR assistant's key features.
+The dashboard includes an iOS-inspired onboarding tour with a **department picker** that lets new users choose which department to explore first.
 
 **How it works:**
 
 - **Auto-opens** on first visit when you navigate to `http://127.0.0.1:18789/?token=<token>`
-- **5 guided steps** walk through the core tasks: asking questions, employee lookups, and reports
+- **Department picker** lets you select any of the 6 departments to see relevant example prompts
+- **Guided steps** walk through core tasks for the selected department
 - **"Try it" buttons** pre-fill the chat input with example prompts — just press Enter
 - **"?" button** (top-right corner) re-opens the tour anytime
 - **Token persistence** — the `?token=` URL parameter is saved to `localStorage` so you don't need to re-enter it
 - **Mobile-friendly** — responsive layout works on screens 375px and up
-
-### Tour Steps
-
-| Step | Title | Try It Prompt |
-|------|-------|---------------|
-| 1 | Your HR Assistant is Ready | — |
-| 2 | Ask a Question | "What is the leave balance for EMP-001?" |
-| 3 | Look Up Your Team | "Look up employee EMP-001" |
-| 4 | Check Reports | "Show me the weekly HR stats" |
-| 5 | You're All Set | — |
 
 ### Customizing the Tour
 
@@ -189,19 +173,73 @@ The tour CSS is in `control-ui-custom/tour.css` — theming uses CSS custom prop
 
 ## Agents
 
+### HR 🤝
+
 | Agent ID | Workspace | Role |
 |---|---|---|
 | `main` | `workspace-hr` | Primary HR agent — routes all employee requests |
 | `hr-employee-bot` | `workspace-hr-employee` | Employee self-service (leave, lookup, policy, onboarding) |
 | `hr-manager-bot` | `workspace-hr-manager` | Manager approvals, escalations, compliance reports |
 
-All three agents share the model `google/gemini-2.5-flash` and communicate via OpenClaw's internal agent-to-agent routing.
+**Skills:** leave-request-processor, employee-data-lookup, hr-policy-qa, employee-onboarding, attendance-tracker, scheduled-hr-report
+
+### Accounting 💰
+
+| Agent ID | Workspace | Role |
+|---|---|---|
+| `acctg-main` | `workspace-accounting` | Primary accounting agent — routes financial requests |
+| `acctg-employee-bot` | `workspace-accounting-user` | Employee self-service (expenses, invoices, budget queries) |
+| `acctg-manager-bot` | `workspace-accounting-manager` | Manager approvals, budget oversight, financial reporting |
+
+**Skills:** expense-processor, invoice-manager, budget-tracker, financial-report, receipt-scanner
+
+### Marketing 📣
+
+| Agent ID | Workspace | Role |
+|---|---|---|
+| `mktg-main` | `workspace-marketing` | Primary marketing agent — routes campaign requests |
+| `mktg-employee-bot` | `workspace-marketing-user` | Self-service (content calendar, analytics, brand assets) |
+| `mktg-manager-bot` | `workspace-marketing-manager` | Campaign approvals, budget allocation, performance reviews |
+
+**Skills:** campaign-manager, content-calendar, analytics-reporter, brand-guidelines-qa, social-scheduler
+
+### Operations ⚙️
+
+| Agent ID | Workspace | Role |
+|---|---|---|
+| `ops-main` | `workspace-operations` | Primary operations agent — routes workflow requests |
+| `ops-employee-bot` | `workspace-operations-user` | Self-service (task tracking, resource requests, SLA queries) |
+| `ops-manager-bot` | `workspace-operations-manager` | Escalations, resource allocation, incident management |
+
+**Skills:** workflow-automator, resource-allocator, sla-tracker, incident-responder, ops-report
+
+### Competitor Analysis 🔍
+
+| Agent ID | Workspace | Role |
+|---|---|---|
+| `comp-main` | `workspace-competitor-analysis` | Primary competitive intel agent — routes research requests |
+| `comp-analyst-bot` | `workspace-competitor-analysis-user` | Analyst self-service (market data, competitor profiles, pricing) |
+| `comp-manager-bot` | `workspace-competitor-analysis-manager` | Strategic briefings, SWOT reviews, executive summaries |
+
+**Skills:** competitor-tracker, market-researcher, pricing-intel, swot-analyzer, comp-report
+
+### Inventory 📦
+
+| Agent ID | Workspace | Role |
+|---|---|---|
+| `inv-main` | `workspace-inventory` | Primary inventory agent — routes stock and supply requests |
+| `inv-employee-bot` | `workspace-inventory-user` | Self-service (stock checks, reorder requests, receiving) |
+| `inv-manager-bot` | `workspace-inventory-manager` | Reorder approvals, warehouse oversight, supply chain reports |
+
+**Skills:** stock-level-monitor, reorder-manager, warehouse-tracker, supply-chain-analyzer, inv-report
+
+All 18 agents share the model `google/gemini-2.5-flash` and communicate via OpenClaw's internal agent-to-agent routing.
 
 ---
 
 ## Skills
 
-Six skills are deployed in `~/.openclaw/workspace-hr/skills/`:
+Six HR skills are deployed in `workspace-hr/skills/`:
 
 | Skill | Description |
 |---|---|
@@ -211,6 +249,8 @@ Six skills are deployed in `~/.openclaw/workspace-hr/skills/`:
 | `employee-onboarding` | Automate new-hire workflow: create HRIS record → provision IT → send welcome email → schedule orientation → add to Slack channels → set 30-day check-in cron. |
 | `attendance-tracker` | Query leave balances and time-off records. Generates team attendance summaries for managers and flags anomalies (3+ unplanned absences in 30 days). |
 | `scheduled-hr-report` | Generate daily/weekly HR summaries (new hires, exits, leave taken, open positions, onboarding status) and post to Slack or Teams. |
+
+Each additional department follows the same pattern with its own skill set (see [Agents](#agents) above for per-department skill lists).
 
 ---
 
@@ -239,7 +279,7 @@ A mock HRIS server runs at `http://127.0.0.1:8888` for local development.
 
 ```bash
 # If using the included mock (Node/Python)
-cd ~/.openclaw/workspace-hr
+cd workspace-hr
 node mock-hris/server.js
 # — or —
 python3 mock-hris/server.py
@@ -306,7 +346,7 @@ curl -s -X POST http://127.0.0.1:18789/hooks/agent \
 
 ### Token
 
-The webhook token is stored in `~/.openclaw/.env` as `WEBHOOK_TOKEN`. It is distinct from the gateway dashboard token.
+The webhook token is stored in your `.env` file (see `.env.template`). It is distinct from the gateway dashboard token.
 
 ---
 
@@ -314,20 +354,20 @@ The webhook token is stored in `~/.openclaw/.env` as `WEBHOOK_TOKEN`. It is dist
 
 | File | Purpose |
 |---|---|
-| `~/.openclaw/openclaw.json` | Main gateway + agent + tools config (runtime, not in git) |
-| `~/.openclaw/.env` | All secrets: API keys, webhook tokens, HRIS URL (never commit) |
-| `.env.template` | Template for `.env` — copy to `~/.openclaw/.env` and fill in |
-| `workspace-hr/SOUL.md` | HR agent persona and ethical boundaries |
+| `$OPENCLAW_HOME/openclaw.json` | Main gateway + agent + tools config (runtime, not in git) |
+| `$OPENCLAW_HOME/.env` | All secrets: API keys, webhook tokens, HRIS URL (never commit) |
+| `.env.template` | Template for `.env` — copy to `$OPENCLAW_HOME/.env` and fill in |
+| `workspace-hr/SOUL.md` | HR agent persona, ethics, tone, boundaries |
 | `workspace-hr/AGENTS.md` | Operating instructions and escalation rules |
 | `workspace-hr/TOOLS.md` | Tool documentation injected into system prompt |
-| `workspace-hr/USER.md` | Company context (name, org structure, etc.) |
-| `workspace-hr/MEMORY.md` | Durable facts: policies, org, key contacts |
+| `workspace-hr/USER.md` | Company context (fill in real values) |
+| `workspace-hr/MEMORY.md` | Durable facts: org structure, key contacts |
 | `workspace-hr/HEARTBEAT.md` | Periodic proactive checks (every 30 min) |
 | `workspace-hr/policies/` | Company policy documents (leave, benefits, CoC, etc.) |
-| `workspace-hr/skills/` | All 6 skill directories |
+| `workspace-hr/skills/` | All 6 HR skill directories |
 | `setup-crons.sh` | Registers all scheduled cron jobs |
 | `QUICKSTART.md` | Condensed startup reference |
-| `/tmp/openclaw-gateway.log` | Gateway log (background mode) |
+| `/tmp/openclaw-gateway.log` | Gateway log (background mode), configurable |
 
 ### Config key notes
 
@@ -342,12 +382,14 @@ The webhook token is stored in `~/.openclaw/.env` as `WEBHOOK_TOKEN`. It is dist
 
 Before connecting to production channels, complete these steps:
 
-- [ ] **1. Set `ANTHROPIC_API_KEY`** in `~/.openclaw/.env` — the agent cannot run without it
-- [ ] **2. Fill policy placeholders** — replace all `[X]` markers in the 5 policy docs under `workspace-hr/policies/`
-- [ ] **3. Update `USER.md`** — add real company name, org structure, key contacts
+- [ ] **1. Set `ANTHROPIC_API_KEY`** in `$OPENCLAW_HOME/.env` — the agent cannot run without it
+- [ ] **2. Fill policy placeholders** — replace all `[X]` markers in the policy docs under each department's `policies/` directory
+- [ ] **3. Update `USER.md`** — add real company name, org structure, key contacts in each workspace
 - [ ] **4. Replace placeholder tokens** — update gateway token and webhook token in `openclaw.json` and `.env` with cryptographically random values
-- [ ] **5. Register cron jobs** — run `./setup-crons.sh` (from this repo root) to activate scheduled reports
-- [ ] **6. Connect channels** — run `openclaw connect slack` and/or `openclaw connect teams` and complete the OAuth flow
+- [ ] **5. Create workspace symlinks** — symlink all `workspace-*` directories into `$OPENCLAW_HOME/` (see [OpenClaw Configuration](#openclaw-configuration-openclawjson) below)
+- [ ] **6. Register all agents** — add all 18 agents to `agents.list` in `$OPENCLAW_HOME/openclaw.json` and set `allowedAgentIds`
+- [ ] **7. Register cron jobs** — run `./setup-crons.sh` (from this repo root) to activate scheduled reports for all departments
+- [ ] **8. Connect channels** — run `openclaw connect slack` and/or `openclaw connect teams` and complete the OAuth flow
 
 ---
 
@@ -356,7 +398,7 @@ Before connecting to production channels, complete these steps:
 ### Rate limits (Gemini free tier)
 
 Gemini 2.5 Flash free tier hits RPM limits quickly during bursts. If you see `429 Too Many Requests`:
-- Wait 1–2 minutes between test bursts
+- Wait 1-2 minutes between test bursts
 - For production, use a paid Gemini API tier or switch to `anthropic/claude-haiku-4-5` for high-volume interactions
 
 ### Missing `ANTHROPIC_API_KEY`
@@ -365,7 +407,7 @@ Gemini 2.5 Flash free tier hits RPM limits quickly during bursts. If you see `42
 Error: ANTHROPIC_API_KEY is not set
 ```
 
-Add to `~/.openclaw/.env`:
+Add to `$OPENCLAW_HOME/.env`:
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
@@ -406,7 +448,7 @@ openclaw gateway --force   # restart
 ### Skills not found
 
 ```bash
-openclaw skills list   # verify all 6 skills are registered
+openclaw skills list   # verify all skills are registered
 ```
 
 If missing, check that each skill directory contains a valid `SKILL.md` with the correct frontmatter `name` field.
@@ -415,59 +457,179 @@ If missing, check that each skill directory contains a valid `SKILL.md` with the
 
 ## Project Structure
 
-Source files live in this git repo. The OpenClaw runtime home (`~/.openclaw/`) holds symlinks to the workspace directories here, plus its own runtime state.
+Source files live in this git repo. The OpenClaw runtime home (`$OPENCLAW_HOME`) holds symlinks to the workspace directories here, plus its own runtime state.
 
 ```
-~/Nero/openclaw-operation/          ← THIS REPO (version-controlled)
-├── .env.template                   ← Copy to ~/.openclaw/.env and fill in secrets
-├── setup-crons.sh                  ← Registers all scheduled cron jobs
-├── QUICKSTART.md                   ← Condensed startup reference
+<repo-root>/                            ← THIS REPO (version-controlled)
+├── .env.template                       ← Copy to $OPENCLAW_HOME/.env and fill in secrets
+├── setup-crons.sh                      ← Registers all scheduled cron jobs
+├── QUICKSTART.md                       ← Condensed startup reference
 ├── README.md
-├── control-ui-custom/              ← Custom dashboard UI overlays
-│   ├── tour.js                     ← Get Started tour (5-step onboarding)
-│   └── tour.css                    ← Tour styling (iOS-inspired cards)
+├── control-ui-custom/                  ← Custom dashboard UI overlays
+│   ├── tour.js                         ← Get Started tour (department picker)
+│   └── tour.css                        ← Tour styling (iOS-inspired cards)
 │
-├── workspace-hr/                   ← Main HR agent workspace
-│   ├── SOUL.md                     ← HR persona, ethics, tone, boundaries
-│   ├── AGENTS.md                   ← Operating instructions, escalation rules
-│   ├── TOOLS.md                    ← Tool documentation for agent
-│   ├── USER.md                     ← Company context (fill in real values)
-│   ├── MEMORY.md                   ← Durable facts: org structure, key contacts
-│   ├── HEARTBEAT.md                ← Periodic proactive checks (every 30 min)
-│   ├── IDENTITY.md                 ← Branding ("HRBot by [Company]")
-│   ├── policies/
-│   │   ├── leave-policy.md
-│   │   ├── benefits.md
-│   │   ├── code-of-conduct.md
-│   │   ├── remote-work-policy.md
-│   │   └── expense-policy.md
-│   └── skills/
-│       ├── leave-request-processor/
-│       ├── employee-data-lookup/
-│       ├── hr-policy-qa/
-│       ├── employee-onboarding/
-│       ├── attendance-tracker/
-│       └── scheduled-hr-report/
+├── workspace-hr/                       ← 🤝 HR department workspace
+│   ├── SOUL.md / AGENTS.md / TOOLS.md / USER.md / MEMORY.md / HEARTBEAT.md / IDENTITY.md
+│   ├── policies/                       ← leave-policy, benefits, CoC, remote-work, expense
+│   └── skills/                         ← 6 skills (leave, lookup, policy-qa, onboarding, attendance, report)
 │
-├── workspace-hr-employee/          ← Employee self-service agent
-└── workspace-hr-manager/           ← Manager approvals + escalation agent
+├── workspace-hr-employee/              ← HR employee self-service agent
+├── workspace-hr-manager/               ← HR manager approvals + escalation agent
+│
+├── workspace-accounting/                    ← 💰 Accounting department workspace
+├── workspace-accounting-user/           ← Accounting employee agent
+├── workspace-accounting-manager/            ← Accounting manager agent
+│
+├── workspace-marketing/                     ← 📣 Marketing department workspace
+├── workspace-marketing-user/            ← Marketing employee agent
+├── workspace-marketing-manager/             ← Marketing manager agent
+│
+├── workspace-operations/                      ← ⚙️ Operations department workspace
+├── workspace-operations-user/             ← Operations employee agent
+├── workspace-operations-manager/              ← Operations manager agent
+│
+├── workspace-competitor-analysis/       ← 🔍 Competitive intelligence workspace
+├── workspace-competitor-analysis-user/             ← Competitor analysis analyst agent
+├── workspace-competitor-analysis-manager/             ← Competitive intel manager agent
+│
+├── workspace-inventory/                      ← 📦 Inventory management workspace
+├── workspace-inventory-user/             ← Inventory employee agent
+└── workspace-inventory-manager/              ← Inventory manager agent
 
-~/.openclaw/                        ← Shared OpenClaw runtime (NOT in git)
-├── openclaw.json                   ← Global config: gateway, agents, tools, hooks
-├── .env                            ← All secrets for all projects (never commit)
-├── workspace-hr -> ~/Nero/openclaw-operation/workspace-hr         (symlink)
-├── workspace-hr-employee -> ~/Nero/openclaw-operation/workspace-hr-employee  (symlink)
-├── workspace-hr-manager -> ~/Nero/openclaw-operation/workspace-hr-manager   (symlink)
-├── agents/                         ← Runtime: session history (OpenClaw-managed)
-├── memory/                         ← Runtime: SQLite databases (OpenClaw-managed)
-├── cron/                           ← Runtime: cron job registry
-└── logs/                           ← Runtime: audit logs
+$OPENCLAW_HOME/                         ← Shared OpenClaw runtime (NOT in git)
+├── openclaw.json                       ← Global config: gateway, agents, tools, hooks
+├── .env                                ← All secrets for all projects (never commit)
+├── workspace-hr -> <repo-root>/workspace-hr                    (symlink)
+├── workspace-hr-employee -> <repo-root>/workspace-hr-employee  (symlink)
+├── workspace-hr-manager -> <repo-root>/workspace-hr-manager    (symlink)
+├── workspace-accounting -> <repo-root>/workspace-accounting              (symlink)
+├── workspace-accounting-user -> ...                             (symlink)
+├── workspace-accounting-manager -> ...                              (symlink)
+├── workspace-marketing -> ...                                       (symlink)
+├── workspace-marketing-user -> ...                              (symlink)
+├── workspace-marketing-manager -> ...                               (symlink)
+├── workspace-operations -> ...                                        (symlink)
+├── workspace-operations-user -> ...                               (symlink)
+├── workspace-operations-manager -> ...                                (symlink)
+├── workspace-competitor-analysis -> ...                         (symlink)
+├── workspace-competitor-analysis-user -> ...                               (symlink)
+├── workspace-competitor-analysis-manager -> ...                               (symlink)
+├── workspace-inventory -> ...                                        (symlink)
+├── workspace-inventory-user -> ...                               (symlink)
+├── workspace-inventory-manager -> ...                                (symlink)
+├── agents/                             ← Runtime: session history (OpenClaw-managed)
+├── memory/                             ← Runtime: SQLite databases (OpenClaw-managed)
+├── cron/                               ← Runtime: cron job registry
+└── logs/                               ← Runtime: audit logs
 ```
 
-> **Setup pattern for future OpenClaw projects:** create a new git repo in `~/Nero/`, put workspace files there, then `ln -s ~/Nero/new-project/workspace-* ~/.openclaw/`. Each project is isolated and version-controlled; `~/.openclaw/` is the shared runtime engine.
+> **Setup pattern for future OpenClaw projects:** create a new git repo, put workspace files there, then symlink `workspace-*` directories into `$OPENCLAW_HOME/`. Each project is isolated and version-controlled; `$OPENCLAW_HOME/` is the shared runtime engine.
 
-> **Skills** are defined in `workspace-hr` and shared via OpenClaw's skill routing. The employee and manager workspaces contain only agent-specific persona/instruction files.
+> **Skills** are defined in the main department workspace (e.g., `workspace-hr`) and shared via OpenClaw's skill routing. The employee and manager workspaces contain only agent-specific persona/instruction files.
 
 ---
 
-*Built on [OpenClaw](https://github.com/openclaw/openclaw) · Model: google/gemini-2.5-flash · Gateway: ws://127.0.0.1:18789*
+## OpenClaw Configuration (openclaw.json)
+
+### Workspace symlinks
+
+Create symlinks from your repo workspaces into the OpenClaw runtime home:
+
+```bash
+# HR department
+ln -s "$(pwd)/workspace-hr" ~/.openclaw/workspace-hr
+ln -s "$(pwd)/workspace-hr-employee" ~/.openclaw/workspace-hr-employee
+ln -s "$(pwd)/workspace-hr-manager" ~/.openclaw/workspace-hr-manager
+
+# Accounting department
+ln -s "$(pwd)/workspace-accounting" ~/.openclaw/workspace-accounting
+ln -s "$(pwd)/workspace-accounting-user" ~/.openclaw/workspace-accounting-user
+ln -s "$(pwd)/workspace-accounting-manager" ~/.openclaw/workspace-accounting-manager
+
+# Marketing department
+ln -s "$(pwd)/workspace-marketing" ~/.openclaw/workspace-marketing
+ln -s "$(pwd)/workspace-marketing-user" ~/.openclaw/workspace-marketing-user
+ln -s "$(pwd)/workspace-marketing-manager" ~/.openclaw/workspace-marketing-manager
+
+# Operations department
+ln -s "$(pwd)/workspace-operations" ~/.openclaw/workspace-operations
+ln -s "$(pwd)/workspace-operations-user" ~/.openclaw/workspace-operations-user
+ln -s "$(pwd)/workspace-operations-manager" ~/.openclaw/workspace-operations-manager
+
+# Competitive intelligence department
+ln -s "$(pwd)/workspace-competitor-analysis" ~/.openclaw/workspace-competitor-analysis
+ln -s "$(pwd)/workspace-competitor-analysis-user" ~/.openclaw/workspace-competitor-analysis-user
+ln -s "$(pwd)/workspace-competitor-analysis-manager" ~/.openclaw/workspace-competitor-analysis-manager
+
+# Inventory department
+ln -s "$(pwd)/workspace-inventory" ~/.openclaw/workspace-inventory
+ln -s "$(pwd)/workspace-inventory-user" ~/.openclaw/workspace-inventory-user
+ln -s "$(pwd)/workspace-inventory-manager" ~/.openclaw/workspace-inventory-manager
+```
+
+### agents.list configuration
+
+Add all 18 agents to `$OPENCLAW_HOME/openclaw.json` under `agents.list`:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": { "primary": "google/gemini-2.5-flash" }
+    },
+    "list": [
+      { "id": "main", "workspace": "workspace-hr" },
+      { "id": "hr-employee-bot", "workspace": "workspace-hr-employee" },
+      { "id": "hr-manager-bot", "workspace": "workspace-hr-manager" },
+      { "id": "acctg-main", "workspace": "workspace-accounting" },
+      { "id": "acctg-employee-bot", "workspace": "workspace-accounting-user" },
+      { "id": "acctg-manager-bot", "workspace": "workspace-accounting-manager" },
+      { "id": "mktg-main", "workspace": "workspace-marketing" },
+      { "id": "mktg-employee-bot", "workspace": "workspace-marketing-user" },
+      { "id": "mktg-manager-bot", "workspace": "workspace-marketing-manager" },
+      { "id": "ops-main", "workspace": "workspace-operations" },
+      { "id": "ops-employee-bot", "workspace": "workspace-operations-user" },
+      { "id": "ops-manager-bot", "workspace": "workspace-operations-manager" },
+      { "id": "comp-main", "workspace": "workspace-competitor-analysis" },
+      { "id": "comp-analyst-bot", "workspace": "workspace-competitor-analysis-user" },
+      { "id": "comp-manager-bot", "workspace": "workspace-competitor-analysis-manager" },
+      { "id": "inv-main", "workspace": "workspace-inventory" },
+      { "id": "inv-employee-bot", "workspace": "workspace-inventory-user" },
+      { "id": "inv-manager-bot", "workspace": "workspace-inventory-manager" }
+    ]
+  }
+}
+```
+
+### allowedAgentIds
+
+Set `allowedAgentIds` in the gateway config to restrict which agents can be triggered via webhooks:
+
+```json
+{
+  "hooks": {
+    "allowedAgentIds": [
+      "main", "hr-employee-bot", "hr-manager-bot",
+      "acctg-main", "acctg-employee-bot", "acctg-manager-bot",
+      "mktg-main", "mktg-employee-bot", "mktg-manager-bot",
+      "ops-main", "ops-employee-bot", "ops-manager-bot",
+      "comp-main", "comp-analyst-bot", "comp-manager-bot",
+      "inv-main", "inv-employee-bot", "inv-manager-bot"
+    ]
+  }
+}
+```
+
+### Verify configuration
+
+```bash
+openclaw doctor          # validate config
+openclaw doctor --fix    # auto-repair common issues
+openclaw skills list     # verify all skills are registered
+openclaw status          # check gateway and agent status
+```
+
+---
+
+*Built on [OpenClaw](https://github.com/openclaw/openclaw) · 6 departments · 18 agents · 31 skills · Model: google/gemini-2.5-flash*

@@ -23,5 +23,5 @@
 - DM employees with status updates
 
 ## Files
-- Company policies stored in: ~/.openclaw/workspace-hr/policies/
-- Employee memory: ~/.openclaw/workspace-hr/memory/
+- Company policies stored in: policies/
+- Employee memory: memory/

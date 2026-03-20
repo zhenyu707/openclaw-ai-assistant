@@ -11,11 +11,11 @@ When employee asks about company policies: vacation, leave, code of conduct,
 benefits, remote work, expenses, holidays, etc.
 
 ## Policy Document Locations
-- Leave policy: ~/.openclaw/workspace-hr/policies/leave-policy.md
-- Benefits: ~/.openclaw/workspace-hr/policies/benefits.md
-- Code of conduct: ~/.openclaw/workspace-hr/policies/code-of-conduct.md
-- Remote work: ~/.openclaw/workspace-hr/policies/remote-work-policy.md
-- Expense: ~/.openclaw/workspace-hr/policies/expense-policy.md
+- Leave policy: policies/leave-policy.md
+- Benefits: policies/benefits.md
+- Code of conduct: policies/code-of-conduct.md
+- Remote work: policies/remote-work-policy.md
+- Expense: policies/expense-policy.md
 
 ## Steps
 

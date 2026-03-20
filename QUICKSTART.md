@@ -19,7 +19,7 @@ openclaw onboard --install-daemon
 ## Step 2: Set Environment Variables
 
 ```bash
-cp ~/.openclaw/.env.template ~/.openclaw/.env
+cp .env.template ~/.openclaw/.env
 # Edit .env and fill in all values
 source ~/.openclaw/.env
 ```
@@ -48,7 +48,7 @@ Before going live, edit these files with your real company data:
 ## Step 4: Register Cron Jobs
 
 ```bash
-~/.openclaw/setup-crons.sh
+./setup-crons.sh
 ```
 
 ---
