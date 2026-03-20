@@ -128,12 +128,16 @@
 .oc-tour-btn--ghost:hover { color: var(--oc-tour-text); border-color: transparent; }
 
 .oc-tour-btn--try {
+  background: rgba(20, 184, 166, 0.12);
   background: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 12%, transparent);
+  border-color: rgba(20, 184, 166, 0.35);
   border-color: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 35%, transparent);
   color: var(--try-color, var(--oc-tour-accent));
 }
 .oc-tour-btn--try:hover {
+  background: rgba(20, 184, 166, 0.2);
   background: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 20%, transparent);
+  border-color: rgba(20, 184, 166, 0.55);
   border-color: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 55%, transparent);
 }
 
@@ -165,6 +169,7 @@
   border-color: var(--dept-color, var(--oc-tour-accent));
   background: rgba(30, 41, 59, 0.8);
   transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(20, 184, 166, 0.2);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 20%, transparent);
 }
 .oc-tour-dept-card:focus-visible {
@@ -172,6 +177,7 @@
   outline-offset: 2px;
 }
 .oc-tour-dept-card--done {
+  border-color: rgba(20, 184, 166, 0.3);
   border-color: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 30%, transparent);
 }
 
@@ -229,7 +235,9 @@
 }
 .oc-tour-done-cell--done {
   opacity: 1;
+  border-color: rgba(20, 184, 166, 0.35);
   border-color: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 35%, transparent);
+  background: rgba(20, 184, 166, 0.08);
   background: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 8%, rgba(30, 41, 59, 0.5));
 }
 

@@ -2,6 +2,20 @@ const TOUR_VERSION = '2026-03-20-v5';
 const STATE_KEY = `openclaw.getStarted.${TOUR_VERSION}`;
 const SETTINGS_KEY = 'openclaw.control.settings.v1';
 const OPEN_DELAY_MS = 900;
+const POLL_MAX_TICKS = 120; // 30s at 250ms intervals
+let _capturedUrlToken = null;
+
+// Strip token from URL immediately to prevent exposure in address bar,
+// referrer headers, and browser history. Persist the value for later use.
+(function stripTokenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('token')) {
+    _capturedUrlToken = params.get('token');
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('token');
+    history.replaceState(null, '', clean.toString());
+  }
+})();
 
 const departments = [
   {
@@ -83,7 +97,7 @@ const state = { view: 'welcome', deptIndex: 0, stepIndex: 0, overlay: null, butt
 
 function loadTourState() { try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch { return {}; } }
 function saveTourState(next) { localStorage.setItem(STATE_KEY, JSON.stringify({ ...loadTourState(), ...next })); }
-function appRoot() { const host = document.querySelector('openclaw-app'); return host?.shadowRoot || host || document.body || null; }
+function appRoot() { const host = document.querySelector('openclaw-app'); return host?.shadowRoot || host || null; }
 
 function getExploredDepts() { return loadTourState().exploredDepts || []; }
 function markDeptExplored(deptId) {
@@ -120,26 +134,37 @@ function showToast(message) {
 
 function tryPrompt(text, agentId) {
   closeTour();
-  if (agentId) switchToAgent(agentId);
-  setTimeout(() => {
-    const r = appRoot();
-    const input = r?.querySelector('textarea, [contenteditable], input[type="text"]');
-    if (input) {
-      if (input.hasAttribute('contenteditable')) {
-        input.textContent = text;
-      } else {
-        const nativeSetter = Object.getOwnPropertyDescriptor(
-          input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-          'value'
-        )?.set;
-        if (nativeSetter) nativeSetter.call(input, text);
-        else input.value = text;
-      }
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
+  if (agentId) {
+    switchToAgent(agentId);
+    // Reload forces the app to re-read settings with the new session key,
+    // since same-tab localStorage writes don't fire the storage event.
+    saveTourState({ pendingPrompt: text });
+    window.location.reload();
+    return;
+  }
+  injectPrompt(text);
+}
+
+function injectPrompt(text) {
+  const r = appRoot();
+  const input = r?.querySelector('textarea, [contenteditable], input[type="text"]');
+  if (input) {
+    if (input.hasAttribute('contenteditable')) {
+      input.textContent = text;
+    } else {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      if (nativeSetter) nativeSetter.call(input, text);
+      else input.value = text;
     }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
     showToast('Prompt loaded \u2014 press Enter to send');
-  }, 400);
+  } else {
+    showToast('Could not load prompt \u2014 please type manually');
+  }
 }
 
 function closeTour({ completed = false } = {}) {
@@ -159,17 +184,26 @@ function openTour({ resetToStart = false } = {}) {
 function render() {
   const dialog = state.overlay?.querySelector('#oc-tour-dialog');
   if (!dialog) return;
+  const prevView = dialog.dataset.view;
+  const viewChanged = prevView !== state.view;
+  dialog.dataset.view = state.view;
+  if (viewChanged) {
+    dialog.style.animation = 'none';
+    dialog.offsetHeight; // force reflow to restart animation
+    dialog.style.animation = '';
+  }
   switch (state.view) {
     case 'welcome': renderWelcome(dialog); break;
     case 'picker': renderPicker(dialog); break;
     case 'dept': renderDept(dialog); break;
     case 'done': renderDone(dialog); break;
   }
-  manageFocus(dialog);
+  if (viewChanged) manageFocus(dialog);
 }
 
 function manageFocus(dialog) {
   requestAnimationFrame(() => {
+    if (document.activeElement && dialog.contains(document.activeElement)) return;
     const primary = dialog.querySelector('.oc-tour-btn--primary, .oc-tour-dept-card');
     if (primary) primary.focus();
   });
@@ -303,43 +337,39 @@ function buildUi() {
 }
 
 function persistUrlToken() {
-  const urlToken = new URLSearchParams(window.location.search).get('token');
-  if (urlToken) {
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) {
-        const settings = JSON.parse(raw);
-        settings.token = urlToken;
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      } else {
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-          gatewayUrl: `${protocol}://${location.host}/ws`,
-          token: urlToken,
-          sessionKey: 'main',
-          lastActiveSessionKey: 'main',
-        }));
-      }
-    } catch (_) { /* best effort */ }
+  const urlToken = _capturedUrlToken;
+  _capturedUrlToken = null;
+  if (!urlToken) return;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const settings = JSON.parse(raw);
+      settings.token = urlToken;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } else {
+      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        gatewayUrl: `${protocol}://${location.host}/ws`,
+        token: urlToken,
+        sessionKey: 'main',
+        lastActiveSessionKey: 'main',
+      }));
+    }
+  } catch (_) { /* best effort */ }
 
-    try {
-      const root = appRoot();
-      if (root) {
-        const tokenInput = root.querySelector('input[placeholder*="token" i], input[name*="token" i], input[type="password"]');
-        if (tokenInput) {
-          const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (nativeSetter) nativeSetter.call(tokenInput, urlToken);
-          else tokenInput.value = urlToken;
-          tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
-          tokenInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+  try {
+    const root = appRoot();
+    if (root) {
+      const tokenInput = root.querySelector('input[placeholder*="token" i], input[name*="token" i]');
+      if (tokenInput) {
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) nativeSetter.call(tokenInput, urlToken);
+        else tokenInput.value = urlToken;
+        tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
+        tokenInput.dispatchEvent(new Event('change', { bubbles: true }));
       }
-    } catch (_) { /* best effort */ }
-
-    const clean = new URL(window.location.href);
-    clean.searchParams.delete('token');
-    history.replaceState(null, '', clean.toString());
-  }
+    }
+  } catch (_) { /* best effort */ }
 }
 
 function handleKeydown(e) {
@@ -356,6 +386,7 @@ function handleKeydown(e) {
     }
   }
   if (state.view === 'picker') {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target.isContentEditable) return;
     const num = parseInt(e.key, 10);
     if (num >= 1 && num <= departments.length) {
       e.preventDefault();
@@ -377,15 +408,22 @@ function installWhenReady() {
   buildUi();
 
   const stored = loadTourState();
-  if (!stored.seen && !stored.completed) {
+  // Check for pending prompt from a "Try it" agent-switch reload
+  if (stored.pendingPrompt) {
+    const prompt = stored.pendingPrompt;
+    saveTourState({ pendingPrompt: undefined });
+    window.setTimeout(() => injectPrompt(prompt), 600);
+  } else if (!stored.seen && !stored.completed) {
     window.setTimeout(() => openTour({ resetToStart: true }), OPEN_DELAY_MS);
   }
 
   document.addEventListener('keydown', handleKeydown);
 }
 
+let _pollTicks = 0;
 const readyTimer = window.setInterval(function () {
+  _pollTicks++;
   installWhenReady();
-  if (state.initialized) window.clearInterval(readyTimer);
+  if (state.initialized || _pollTicks >= POLL_MAX_TICKS) window.clearInterval(readyTimer);
 }, 250);
 window.addEventListener('load', installWhenReady);
