@@ -1,8 +1,10 @@
-const TOUR_VERSION = '2026-03-20-v5';
+const TOUR_VERSION = '2026-03-20-v5.2';
 const STATE_KEY = `openclaw.getStarted.${TOUR_VERSION}`;
 const SETTINGS_KEY = 'openclaw.control.settings.v1';
 const OPEN_DELAY_MS = 900;
 const POLL_MAX_TICKS = 120; // 30s at 250ms intervals
+const PROMPT_POLL_MAX = 10;
+const PROMPT_POLL_BASE_MS = 100;
 let _capturedUrlToken = null;
 
 // Strip token from URL immediately to prevent exposure in address bar,
@@ -20,7 +22,7 @@ let _capturedUrlToken = null;
 const departments = [
   {
     id: 'hr',
-    icon: '🤝',
+    icon: '\u{1F91D}',
     label: 'HR',
     desc: 'Leave, employees, policies',
     color: '#14b8a6',
@@ -33,7 +35,7 @@ const departments = [
   },
   {
     id: 'accounting',
-    icon: '💰',
+    icon: '\u{1F4B0}',
     label: 'Accounting',
     desc: 'Expenses, budgets, invoices',
     color: '#f59e0b',
@@ -45,7 +47,7 @@ const departments = [
   },
   {
     id: 'marketing',
-    icon: '📣',
+    icon: '\u{1F4E3}',
     label: 'Marketing',
     desc: 'Campaigns, content, analytics',
     color: '#ec4899',
@@ -57,7 +59,7 @@ const departments = [
   },
   {
     id: 'operations',
-    icon: '⚙️',
+    icon: '\u2699\uFE0F',
     label: 'Operations',
     desc: 'Tasks, facilities, workflows',
     color: '#8b5cf6',
@@ -69,7 +71,7 @@ const departments = [
   },
   {
     id: 'competitor-analysis',
-    icon: '🔍',
+    icon: '\u{1F50D}',
     label: 'Competitors',
     desc: 'Profiles, trends, intel',
     color: '#06b6d4',
@@ -81,7 +83,7 @@ const departments = [
   },
   {
     id: 'inventory',
-    icon: '📦',
+    icon: '\u{1F4E6}',
     label: 'Inventory',
     desc: 'Stock, orders, receiving',
     color: '#22c55e',
@@ -93,28 +95,93 @@ const departments = [
   },
 ];
 
-const state = { view: 'welcome', deptIndex: 0, stepIndex: 0, overlay: null, button: null, initialized: false, open: false };
+const state = {
+  view: 'welcome',
+  deptIndex: 0,
+  stepIndex: 0,
+  overlay: null,
+  button: null,
+  initialized: false,
+  open: false,
+};
 
-function loadTourState() { try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch { return {}; } }
-function saveTourState(next) { localStorage.setItem(STATE_KEY, JSON.stringify({ ...loadTourState(), ...next })); }
-function appRoot() { const host = document.querySelector('openclaw-app'); return host?.shadowRoot || host || null; }
-
-function getExploredDepts() { return loadTourState().exploredDepts || []; }
-function markDeptExplored(deptId) {
-  const explored = getExploredDepts();
-  if (!explored.includes(deptId)) { explored.push(deptId); saveTourState({ exploredDepts: explored }); }
+function loadTourState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); }
+  catch { return {}; }
 }
 
-function switchToAgent(agentId) {
-  const sessionKey = `agent:${agentId}:main`;
+function saveTourState(next) {
+  localStorage.setItem(STATE_KEY, JSON.stringify({ ...loadTourState(), ...next }));
+}
+
+function deleteTourStateKey(key) {
+  const s = loadTourState();
+  delete s[key];
+  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+}
+
+function appRoot() {
+  const host = document.querySelector('openclaw-app');
+  return host?.shadowRoot || host || null;
+}
+
+function getExploredDepts() { return loadTourState().exploredDepts || []; }
+
+function markDeptExplored(deptId) {
+  const explored = getExploredDepts();
+  if (!explored.includes(deptId)) {
+    explored.push(deptId);
+    saveTourState({ exploredDepts: explored });
+  }
+}
+
+// --- Shared helpers ---
+
+function updateSettings(updater) {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
       const settings = JSON.parse(raw);
-      settings.sessionKey = sessionKey;
-      settings.lastActiveSessionKey = sessionKey;
+      updater(settings);
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      return settings;
     }
+  } catch (_) { /* best effort */ }
+  return null;
+}
+
+function ensureSettings() {
+  const raw = localStorage.getItem(SETTINGS_KEY);
+  if (raw) return JSON.parse(raw);
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  const skeleton = {
+    gatewayUrl: `${protocol}://${location.host}/ws`,
+    token: '',
+    sessionKey: 'main',
+    lastActiveSessionKey: 'main',
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(skeleton));
+  return skeleton;
+}
+
+function setNativeValue(input, value) {
+  const proto = input.tagName === 'TEXTAREA'
+    ? HTMLTextAreaElement.prototype
+    : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+  if (setter) setter.call(input, value);
+  else input.value = value;
+}
+
+// --- Agent switching ---
+
+function switchToAgent(agentId) {
+  const sessionKey = `agent:${agentId}:main`;
+  try {
+    const settings = ensureSettings();
+    settings.sessionKey = sessionKey;
+    settings.lastActiveSessionKey = sessionKey;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (_) { /* best effort */ }
 }
 
@@ -152,12 +219,7 @@ function injectPrompt(text) {
     if (input.hasAttribute('contenteditable')) {
       input.textContent = text;
     } else {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-        'value'
-      )?.set;
-      if (nativeSetter) nativeSetter.call(input, text);
-      else input.value = text;
+      setNativeValue(input, text);
     }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
@@ -167,19 +229,44 @@ function injectPrompt(text) {
   }
 }
 
+function injectPromptWithRetry(text, attempt) {
+  if (attempt >= PROMPT_POLL_MAX) {
+    showToast('Could not load prompt \u2014 please type manually');
+    return;
+  }
+  const r = appRoot();
+  const input = r?.querySelector('textarea, [contenteditable], input[type="text"]');
+  if (input) {
+    injectPrompt(text);
+  } else {
+    const delay = PROMPT_POLL_BASE_MS * Math.pow(2, attempt);
+    setTimeout(() => injectPromptWithRetry(text, attempt + 1), delay);
+  }
+}
+
+// --- Tour open/close ---
+
 function closeTour({ completed = false } = {}) {
   state.open = false;
   if (state.overlay) state.overlay.dataset.open = 'false';
-  saveTourState({ seen: true, completed: completed || !!loadTourState().completed });
+  const updates = { seen: true };
+  if (completed) updates.completed = true;
+  saveTourState(updates);
 }
 
 function openTour({ resetToStart = false } = {}) {
   if (!state.overlay) return;
-  if (resetToStart) { state.view = 'welcome'; state.deptIndex = 0; state.stepIndex = 0; }
+  if (resetToStart) {
+    state.view = 'welcome';
+    state.deptIndex = 0;
+    state.stepIndex = 0;
+  }
   state.open = true;
   state.overlay.dataset.open = 'true';
   render();
 }
+
+// --- Rendering ---
 
 function render() {
   const dialog = state.overlay?.querySelector('#oc-tour-dialog');
@@ -212,7 +299,7 @@ function manageFocus(dialog) {
 function renderWelcome(dialog) {
   const deptNames = departments.map(d => d.label).join(', ');
   dialog.innerHTML = `
-    <div id="oc-tour-icon">👋</div>
+    <div id="oc-tour-icon">\u{1F44B}</div>
     <h2 id="oc-tour-step-title">Your AI Assistants Are Ready</h2>
     <p id="oc-tour-step-subtitle"><strong>${departments.length} departments</strong> are set up and waiting: ${deptNames}. Each one can answer questions, run tasks, and generate reports.</p>
     <div id="oc-tour-actions">
@@ -232,7 +319,7 @@ function renderPicker(dialog) {
       <span class="oc-tour-dept-label">${dept.label}</span>
       <span class="oc-tour-dept-desc">${dept.desc}</span>
       <span class="oc-tour-dept-agents">${dept.steps.length} topics</span>
-      ${done ? '<span class="oc-tour-dept-check">✓</span>' : ''}
+      ${done ? '<span class="oc-tour-dept-check">\u2713</span>' : ''}
     </button>`;
   }).join('');
 
@@ -302,12 +389,12 @@ function renderDone(dialog) {
     return `<div class="oc-tour-done-cell${done ? ' oc-tour-done-cell--done' : ''}" style="--dept-color:${d.color}">
       <span class="oc-tour-done-icon">${d.icon}</span>
       <span class="oc-tour-done-label">${d.label}</span>
-      ${done ? '<span class="oc-tour-done-check">✓</span>' : '<span class="oc-tour-done-pending">\u2013</span>'}
+      ${done ? '<span class="oc-tour-done-check">\u2713</span>' : '<span class="oc-tour-done-pending">\u2013</span>'}
     </div>`;
   }).join('');
 
   dialog.innerHTML = `
-    <div id="oc-tour-icon">✅</div>
+    <div id="oc-tour-icon">\u2705</div>
     <h2 id="oc-tour-step-title">You're All Set</h2>
     <p id="oc-tour-step-subtitle">Use the sidebar to navigate between departments. The <strong>?</strong> button is always in the top-right if you want this tour again.</p>
     <div id="oc-tour-done-grid">${grid}</div>
@@ -316,6 +403,8 @@ function renderDone(dialog) {
     </div>`;
   dialog.querySelector('#oc-tour-close').addEventListener('click', () => closeTour({ completed: true }));
 }
+
+// --- UI construction ---
 
 function buildUi() {
   const button = document.createElement('button');
@@ -336,25 +425,17 @@ function buildUi() {
   state.overlay = overlay;
 }
 
+// --- Token persistence ---
+
 function persistUrlToken() {
   const urlToken = _capturedUrlToken;
   _capturedUrlToken = null;
   if (!urlToken) return;
+
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const settings = JSON.parse(raw);
-      settings.token = urlToken;
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } else {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-        gatewayUrl: `${protocol}://${location.host}/ws`,
-        token: urlToken,
-        sessionKey: 'main',
-        lastActiveSessionKey: 'main',
-      }));
-    }
+    const settings = ensureSettings();
+    settings.token = urlToken;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (_) { /* best effort */ }
 
   try {
@@ -362,9 +443,7 @@ function persistUrlToken() {
     if (root) {
       const tokenInput = root.querySelector('input[placeholder*="token" i], input[name*="token" i]');
       if (tokenInput) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        if (nativeSetter) nativeSetter.call(tokenInput, urlToken);
-        else tokenInput.value = urlToken;
+        setNativeValue(tokenInput, urlToken);
         tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
         tokenInput.dispatchEvent(new Event('change', { bubbles: true }));
       }
@@ -372,9 +451,30 @@ function persistUrlToken() {
   } catch (_) { /* best effort */ }
 }
 
+// --- Keyboard handling ---
+
+function trapFocus(e) {
+  const dialog = state.overlay?.querySelector('#oc-tour-dialog');
+  if (!dialog) return;
+  const focusable = [...dialog.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )].filter(el => el.offsetParent !== null);
+  if (!focusable.length) { e.preventDefault(); return; }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 function handleKeydown(e) {
   if (!state.open) return;
   if (e.key === 'Escape') { closeTour(); return; }
+  if (e.key === 'Tab') { trapFocus(e); return; }
   if (state.view === 'dept') {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -384,8 +484,7 @@ function handleKeydown(e) {
       e.preventDefault();
       if (state.stepIndex > 0) { state.stepIndex--; render(); }
     }
-  }
-  if (state.view === 'picker') {
+  } else if (state.view === 'picker') {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target.isContentEditable) return;
     const num = parseInt(e.key, 10);
     if (num >= 1 && num <= departments.length) {
@@ -397,6 +496,8 @@ function handleKeydown(e) {
     }
   }
 }
+
+// --- Initialization ---
 
 function installWhenReady() {
   if (state.initialized) return;
@@ -411,8 +512,8 @@ function installWhenReady() {
   // Check for pending prompt from a "Try it" agent-switch reload
   if (stored.pendingPrompt) {
     const prompt = stored.pendingPrompt;
-    saveTourState({ pendingPrompt: undefined });
-    window.setTimeout(() => injectPrompt(prompt), 600);
+    deleteTourStateKey('pendingPrompt');
+    injectPromptWithRetry(prompt, 0);
   } else if (!stored.seen && !stored.completed) {
     window.setTimeout(() => openTour({ resetToStart: true }), OPEN_DELAY_MS);
   }
