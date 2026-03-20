@@ -156,6 +156,37 @@ From the dashboard you can:
 
 ---
 
+## Get Started Tour
+
+The dashboard includes an iOS-inspired onboarding tour that guides new users through the HR assistant's key features.
+
+**How it works:**
+
+- **Auto-opens** on first visit when you navigate to `http://127.0.0.1:18789/?token=<token>`
+- **5 guided steps** walk through the core tasks: asking questions, employee lookups, and reports
+- **"Try it" buttons** pre-fill the chat input with example prompts — just press Enter
+- **"?" button** (top-right corner) re-opens the tour anytime
+- **Token persistence** — the `?token=` URL parameter is saved to `localStorage` so you don't need to re-enter it
+- **Mobile-friendly** — responsive layout works on screens 375px and up
+
+### Tour Steps
+
+| Step | Title | Try It Prompt |
+|------|-------|---------------|
+| 1 | Your HR Assistant is Ready | — |
+| 2 | Ask a Question | "What is the leave balance for EMP-001?" |
+| 3 | Look Up Your Team | "Look up employee EMP-001" |
+| 4 | Check Reports | "Show me the weekly HR stats" |
+| 5 | You're All Set | — |
+
+### Customizing the Tour
+
+Edit `control-ui-custom/tour.js` to modify steps, prompts, or behavior. The tour uses a versioned localStorage key (`TOUR_VERSION`), so bumping the version will re-trigger the tour for all users.
+
+The tour CSS is in `control-ui-custom/tour.css` — theming uses CSS custom properties (`--oc-tour-accent`, `--oc-tour-surface`, etc.).
+
+---
+
 ## Agents
 
 | Agent ID | Workspace | Role |
@@ -392,6 +423,9 @@ Source files live in this git repo. The OpenClaw runtime home (`~/.openclaw/`) h
 ├── setup-crons.sh                  ← Registers all scheduled cron jobs
 ├── QUICKSTART.md                   ← Condensed startup reference
 ├── README.md
+├── control-ui-custom/              ← Custom dashboard UI overlays
+│   ├── tour.js                     ← Get Started tour (5-step onboarding)
+│   └── tour.css                    ← Tour styling (iOS-inspired cards)
 │
 ├── workspace-hr/                   ← Main HR agent workspace
 │   ├── SOUL.md                     ← HR persona, ethics, tone, boundaries

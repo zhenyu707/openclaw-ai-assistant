@@ -1,0 +1,181 @@
+/* === Tour: iOS-inspired onboarding === */
+:root {
+  --oc-tour-accent: #14b8a6;
+  --oc-tour-accent-deep: #0f766e;
+  --oc-tour-surface: rgba(15, 23, 42, 0.97);
+  --oc-tour-text: #f1f5f9;
+  --oc-tour-muted: #94a3b8;
+  --oc-tour-border: rgba(148, 163, 184, 0.18);
+}
+
+/* --- Help button (top-right "?") --- */
+#oc-tour-button {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--oc-tour-border);
+  border-radius: 50%;
+  background: var(--oc-tour-surface);
+  color: var(--oc-tour-muted);
+  font: 600 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+#oc-tour-button:hover {
+  border-color: var(--oc-tour-accent);
+  color: var(--oc-tour-text);
+}
+
+/* --- Overlay backdrop --- */
+#oc-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: none;
+  place-items: center;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+#oc-tour-overlay[data-open="true"] { display: grid; }
+
+/* --- Dialog card --- */
+#oc-tour-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 40px 32px 28px;
+  border-radius: 24px;
+  border: 1px solid var(--oc-tour-border);
+  background: var(--oc-tour-surface);
+  color: var(--oc-tour-text);
+  box-shadow: 0 24px 64px rgba(2, 6, 23, 0.6);
+  text-align: center;
+  animation: oc-tour-fadein 0.25s ease-out;
+}
+
+/* --- Icon --- */
+#oc-tour-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+/* --- Title --- */
+#oc-tour-step-title {
+  margin: 0 0 10px;
+  font: 700 22px/1.25 system-ui, sans-serif;
+  color: var(--oc-tour-text);
+}
+
+/* --- Subtitle --- */
+#oc-tour-step-subtitle {
+  margin: 0 0 28px;
+  font: 400 15px/1.6 system-ui, sans-serif;
+  color: var(--oc-tour-muted);
+}
+
+/* --- Actions row --- */
+#oc-tour-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+#oc-tour-nav {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* --- Buttons --- */
+.oc-tour-btn {
+  appearance: none;
+  border: 1px solid var(--oc-tour-border);
+  background: rgba(30, 41, 59, 0.7);
+  color: var(--oc-tour-text);
+  border-radius: 12px;
+  padding: 10px 20px;
+  font: 600 14px/1 system-ui, sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.oc-tour-btn:hover { border-color: rgba(153, 246, 228, 0.5); }
+
+.oc-tour-btn--primary {
+  background: linear-gradient(135deg, var(--oc-tour-accent), var(--oc-tour-accent-deep));
+  border-color: transparent;
+  color: #042f2e;
+  min-width: 100px;
+}
+.oc-tour-btn--primary:hover { opacity: 0.92; border-color: transparent; }
+
+.oc-tour-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--oc-tour-muted);
+}
+.oc-tour-btn--ghost:hover { color: var(--oc-tour-text); border-color: transparent; }
+
+#oc-tour-try {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.3);
+  color: #99f6e4;
+}
+#oc-tour-try:hover { border-color: var(--oc-tour-accent); }
+
+/* --- Progress dots --- */
+#oc-tour-progress {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.oc-tour-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.3);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.oc-tour-dot[data-active="true"] {
+  background: var(--oc-tour-accent);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+}
+
+/* --- Skip link --- */
+.oc-tour-btn--skip {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--oc-tour-muted);
+  font: 400 13px/1 system-ui, sans-serif;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.oc-tour-btn--skip:hover { opacity: 1; }
+
+/* --- Animations --- */
+@keyframes oc-tour-fadein {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Mobile --- */
+@media (max-width: 480px) {
+  #oc-tour-dialog {
+    width: calc(100vw - 24px);
+    padding: 32px 20px 24px;
+    border-radius: 20px;
+  }
+  #oc-tour-icon { font-size: 48px; }
+  #oc-tour-step-title { font-size: 20px; }
+  #oc-tour-step-subtitle { font-size: 14px; }
+  #oc-tour-button { top: 12px; right: 12px; }
+}

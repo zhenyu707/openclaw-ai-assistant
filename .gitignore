@@ -16,6 +16,9 @@ sessions/
 # Browser automation artifacts
 .playwright-mcp/
 
+# Test artifacts
+tests/mock-hris/__pycache__/
+
 # OS noise
 .DS_Store
 Thumbs.db
