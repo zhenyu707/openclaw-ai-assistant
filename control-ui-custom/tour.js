@@ -1,5 +1,6 @@
-const TOUR_VERSION = '2026-03-20-v4';
+const TOUR_VERSION = '2026-03-20-v5';
 const STATE_KEY = `openclaw.getStarted.${TOUR_VERSION}`;
+const SETTINGS_KEY = 'openclaw.control.settings.v1';
 const OPEN_DELAY_MS = 900;
 
 const departments = [
@@ -7,6 +8,7 @@ const departments = [
     id: 'hr',
     icon: '🤝',
     label: 'HR',
+    desc: 'Leave, employees, policies',
     color: '#14b8a6',
     agentId: 'main',
     steps: [
@@ -19,6 +21,7 @@ const departments = [
     id: 'accounting',
     icon: '💰',
     label: 'Accounting',
+    desc: 'Expenses, budgets, invoices',
     color: '#f59e0b',
     agentId: 'acctg-main',
     steps: [
@@ -30,6 +33,7 @@ const departments = [
     id: 'marketing',
     icon: '📣',
     label: 'Marketing',
+    desc: 'Campaigns, content, analytics',
     color: '#ec4899',
     agentId: 'mktg-main',
     steps: [
@@ -41,6 +45,7 @@ const departments = [
     id: 'operations',
     icon: '⚙️',
     label: 'Operations',
+    desc: 'Tasks, facilities, workflows',
     color: '#8b5cf6',
     agentId: 'ops-main',
     steps: [
@@ -52,6 +57,7 @@ const departments = [
     id: 'competitor-analysis',
     icon: '🔍',
     label: 'Competitors',
+    desc: 'Profiles, trends, intel',
     color: '#06b6d4',
     agentId: 'comp-main',
     steps: [
@@ -63,6 +69,7 @@ const departments = [
     id: 'inventory',
     icon: '📦',
     label: 'Inventory',
+    desc: 'Stock, orders, receiving',
     color: '#22c55e',
     agentId: 'inv-main',
     steps: [
@@ -77,7 +84,6 @@ const state = { view: 'welcome', deptIndex: 0, stepIndex: 0, overlay: null, butt
 function loadTourState() { try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch { return {}; } }
 function saveTourState(next) { localStorage.setItem(STATE_KEY, JSON.stringify({ ...loadTourState(), ...next })); }
 function appRoot() { const host = document.querySelector('openclaw-app'); return host?.shadowRoot || host || document.body || null; }
-function normalizeText(text) { return (text || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
 
 function getExploredDepts() { return loadTourState().exploredDepts || []; }
 function markDeptExplored(deptId) {
@@ -85,21 +91,36 @@ function markDeptExplored(deptId) {
   if (!explored.includes(deptId)) { explored.push(deptId); saveTourState({ exploredDepts: explored }); }
 }
 
-function navigateTo(route, text) {
-  const root = appRoot();
-  if (!root) return false;
-  const link = [...root.querySelectorAll('a[href]')].find((node) => {
-    const href = node.getAttribute('href') || '';
-    const label = normalizeText(node.textContent || '');
-    return href === route || label === normalizeText(text);
-  });
-  if (link) { link.click(); return true; }
-  return false;
+function switchToAgent(agentId) {
+  const sessionKey = `agent:${agentId}:main`;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const settings = JSON.parse(raw);
+      settings.sessionKey = sessionKey;
+      settings.lastActiveSessionKey = sessionKey;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+  } catch (_) { /* best effort */ }
 }
 
-function tryPrompt(text) {
+function showToast(message) {
+  const existing = document.getElementById('oc-tour-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'oc-tour-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.dataset.visible = 'true'; });
+  setTimeout(() => {
+    toast.dataset.visible = 'false';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function tryPrompt(text, agentId) {
   closeTour();
-  const root = appRoot();
+  if (agentId) switchToAgent(agentId);
   setTimeout(() => {
     const r = appRoot();
     const input = r?.querySelector('textarea, [contenteditable], input[type="text"]');
@@ -117,13 +138,14 @@ function tryPrompt(text) {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.focus();
     }
+    showToast('Prompt loaded \u2014 press Enter to send');
   }, 400);
 }
 
 function closeTour({ completed = false } = {}) {
   state.open = false;
   if (state.overlay) state.overlay.dataset.open = 'false';
-  saveTourState({ seen: true, completed: completed || loadTourState().completed || false });
+  saveTourState({ seen: true, completed: completed || !!loadTourState().completed });
 }
 
 function openTour({ resetToStart = false } = {}) {
@@ -143,13 +165,22 @@ function render() {
     case 'dept': renderDept(dialog); break;
     case 'done': renderDone(dialog); break;
   }
+  manageFocus(dialog);
+}
+
+function manageFocus(dialog) {
+  requestAnimationFrame(() => {
+    const primary = dialog.querySelector('.oc-tour-btn--primary, .oc-tour-dept-card');
+    if (primary) primary.focus();
+  });
 }
 
 function renderWelcome(dialog) {
+  const deptNames = departments.map(d => d.label).join(', ');
   dialog.innerHTML = `
     <div id="oc-tour-icon">👋</div>
     <h2 id="oc-tour-step-title">Your AI Assistants Are Ready</h2>
-    <p id="oc-tour-step-subtitle">This platform has <strong>6 AI departments</strong> — HR, Accounting, Marketing, Operations, Competitive Intelligence, and Inventory. Each one is ready to answer questions, run tasks, and generate reports.</p>
+    <p id="oc-tour-step-subtitle"><strong>${departments.length} departments</strong> are set up and waiting: ${deptNames}. Each one can answer questions, run tasks, and generate reports.</p>
     <div id="oc-tour-actions">
       <button class="oc-tour-btn oc-tour-btn--primary" id="oc-tour-explore" type="button">Explore Departments</button>
     </div>
@@ -162,15 +193,18 @@ function renderPicker(dialog) {
   const explored = getExploredDepts();
   const cards = departments.map((dept, i) => {
     const done = explored.includes(dept.id);
-    return `<button class="oc-tour-dept-card" data-dept="${i}" style="--dept-color:${dept.color}">
-      <span class="oc-tour-dept-header">${dept.icon} ${dept.label}</span>
+    return `<button class="oc-tour-dept-card${done ? ' oc-tour-dept-card--done' : ''}" data-dept="${i}" style="--dept-color:${dept.color}" tabindex="0">
+      <span class="oc-tour-dept-icon">${dept.icon}</span>
+      <span class="oc-tour-dept-label">${dept.label}</span>
+      <span class="oc-tour-dept-desc">${dept.desc}</span>
+      <span class="oc-tour-dept-agents">${dept.steps.length} topics</span>
       ${done ? '<span class="oc-tour-dept-check">✓</span>' : ''}
     </button>`;
   }).join('');
 
   dialog.innerHTML = `
     <h2 id="oc-tour-step-title">Choose a Department</h2>
-    <p id="oc-tour-step-subtitle">Tap a department to see what it can do. You can explore as many as you like.</p>
+    <p id="oc-tour-step-subtitle">Tap a department to see what it can do. Explore as many as you like.</p>
     <div id="oc-tour-dept-grid">${cards}</div>
     <div id="oc-tour-actions">
       <button class="oc-tour-btn oc-tour-btn--primary" id="oc-tour-finish" type="button">I'm Done</button>
@@ -200,16 +234,19 @@ function renderDept(dialog) {
     <h2 id="oc-tour-step-title">${step.title}</h2>
     <p id="oc-tour-step-subtitle">${step.subtitle}</p>
     <div id="oc-tour-actions">
-      ${step.tryPrompt ? `<button class="oc-tour-btn" id="oc-tour-try" type="button" style="background:${dept.color}22;border-color:${dept.color}55;color:${dept.color}">Try it</button>` : ''}
+      ${step.tryPrompt ? `<button class="oc-tour-btn oc-tour-btn--try" id="oc-tour-try" type="button" style="--try-color:${dept.color}">Try it</button>` : ''}
       <div id="oc-tour-nav">
         ${state.stepIndex > 0 ? '<button class="oc-tour-btn oc-tour-btn--ghost" id="oc-tour-prev" type="button">Back</button>' : ''}
         <button class="oc-tour-btn oc-tour-btn--primary" id="oc-tour-next" type="button" style="background:${dept.color}">${isLast ? 'Back to Departments' : 'Next'}</button>
       </div>
     </div>
-    <div id="oc-tour-progress">${dots}</div>`;
+    <div id="oc-tour-progress">
+      <span class="oc-tour-progress-label" style="color:${dept.color}">${dept.label} \u2014 Step ${state.stepIndex + 1} of ${dept.steps.length}</span>
+      <div class="oc-tour-dots">${dots}</div>
+    </div>`;
 
   if (step.tryPrompt) {
-    dialog.querySelector('#oc-tour-try').addEventListener('click', () => tryPrompt(step.tryPrompt));
+    dialog.querySelector('#oc-tour-try').addEventListener('click', () => tryPrompt(step.tryPrompt, dept.agentId));
   }
   const prevBtn = dialog.querySelector('#oc-tour-prev');
   if (prevBtn) prevBtn.addEventListener('click', () => { state.stepIndex--; render(); });
@@ -217,25 +254,29 @@ function renderDept(dialog) {
     if (isLast) {
       markDeptExplored(dept.id);
       state.view = 'picker';
-      render();
     } else {
       state.stepIndex++;
-      render();
     }
+    render();
   });
 }
 
 function renderDone(dialog) {
   const explored = getExploredDepts();
-  const deptList = departments.map((d) =>
-    `<span class="oc-tour-done-dept" style="color:${d.color}">${d.icon} ${d.label}${explored.includes(d.id) ? ' ✓' : ''}</span>`
-  ).join('');
+  const grid = departments.map((d) => {
+    const done = explored.includes(d.id);
+    return `<div class="oc-tour-done-cell${done ? ' oc-tour-done-cell--done' : ''}" style="--dept-color:${d.color}">
+      <span class="oc-tour-done-icon">${d.icon}</span>
+      <span class="oc-tour-done-label">${d.label}</span>
+      ${done ? '<span class="oc-tour-done-check">✓</span>' : '<span class="oc-tour-done-pending">\u2013</span>'}
+    </div>`;
+  }).join('');
 
   dialog.innerHTML = `
     <div id="oc-tour-icon">✅</div>
     <h2 id="oc-tour-step-title">You're All Set</h2>
     <p id="oc-tour-step-subtitle">Use the sidebar to navigate between departments. The <strong>?</strong> button is always in the top-right if you want this tour again.</p>
-    <div id="oc-tour-done-depts">${deptList}</div>
+    <div id="oc-tour-done-grid">${grid}</div>
     <div id="oc-tour-actions">
       <button class="oc-tour-btn oc-tour-btn--primary" id="oc-tour-close" type="button">Get Started</button>
     </div>`;
@@ -264,7 +305,23 @@ function buildUi() {
 function persistUrlToken() {
   const urlToken = new URLSearchParams(window.location.search).get('token');
   if (urlToken) {
-    localStorage.setItem('openclaw.gateway.token', urlToken);
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const settings = JSON.parse(raw);
+        settings.token = urlToken;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } else {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+          gatewayUrl: `${protocol}://${location.host}/ws`,
+          token: urlToken,
+          sessionKey: 'main',
+          lastActiveSessionKey: 'main',
+        }));
+      }
+    } catch (_) { /* best effort */ }
+
     try {
       const root = appRoot();
       if (root) {
@@ -278,9 +335,35 @@ function persistUrlToken() {
         }
       }
     } catch (_) { /* best effort */ }
+
     const clean = new URL(window.location.href);
     clean.searchParams.delete('token');
     history.replaceState(null, '', clean.toString());
+  }
+}
+
+function handleKeydown(e) {
+  if (!state.open) return;
+  if (e.key === 'Escape') { closeTour(); return; }
+  if (state.view === 'dept') {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const dept = departments[state.deptIndex];
+      if (state.stepIndex < dept.steps.length - 1) { state.stepIndex++; render(); }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (state.stepIndex > 0) { state.stepIndex--; render(); }
+    }
+  }
+  if (state.view === 'picker') {
+    const num = parseInt(e.key, 10);
+    if (num >= 1 && num <= departments.length) {
+      e.preventDefault();
+      state.deptIndex = num - 1;
+      state.stepIndex = 0;
+      state.view = 'dept';
+      render();
+    }
   }
 }
 
@@ -298,10 +381,11 @@ function installWhenReady() {
     window.setTimeout(() => openTour({ resetToStart: true }), OPEN_DELAY_MS);
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.open) closeTour();
-  });
+  document.addEventListener('keydown', handleKeydown);
 }
 
-const readyTimer = window.setInterval(() => { installWhenReady(); if (state.initialized) window.clearInterval(readyTimer); }, 250);
+const readyTimer = window.setInterval(function () {
+  installWhenReady();
+  if (state.initialized) window.clearInterval(readyTimer);
+}, 250);
 window.addEventListener('load', installWhenReady);

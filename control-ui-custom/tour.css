@@ -103,9 +103,10 @@
   padding: 10px 20px;
   font: 600 14px/1 system-ui, sans-serif;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, transform 0.1s;
 }
 .oc-tour-btn:hover { border-color: rgba(153, 246, 228, 0.5); }
+.oc-tour-btn:active { transform: scale(0.97); }
 
 .oc-tour-btn--primary {
   background: linear-gradient(135deg, var(--oc-tour-accent), var(--oc-tour-accent-deep));
@@ -114,6 +115,10 @@
   min-width: 100px;
 }
 .oc-tour-btn--primary:hover { opacity: 0.92; border-color: transparent; }
+.oc-tour-btn--primary:focus-visible {
+  outline: 2px solid var(--oc-tour-accent);
+  outline-offset: 2px;
+}
 
 .oc-tour-btn--ghost {
   background: transparent;
@@ -121,6 +126,16 @@
   color: var(--oc-tour-muted);
 }
 .oc-tour-btn--ghost:hover { color: var(--oc-tour-text); border-color: transparent; }
+
+.oc-tour-btn--try {
+  background: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 12%, transparent);
+  border-color: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 35%, transparent);
+  color: var(--try-color, var(--oc-tour-accent));
+}
+.oc-tour-btn--try:hover {
+  background: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 20%, transparent);
+  border-color: color-mix(in srgb, var(--try-color, var(--oc-tour-accent)) 55%, transparent);
+}
 
 /* --- Department picker grid --- */
 #oc-tour-dept-grid {
@@ -135,24 +150,53 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 16px 8px;
+  gap: 4px;
+  padding: 16px 8px 12px;
   border-radius: 14px;
   border: 1px solid var(--oc-tour-border);
   background: rgba(30, 41, 59, 0.5);
   color: var(--oc-tour-text);
   font: 600 13px/1.3 system-ui, sans-serif;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
   position: relative;
 }
 .oc-tour-dept-card:hover {
   border-color: var(--dept-color, var(--oc-tour-accent));
   background: rgba(30, 41, 59, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 20%, transparent);
+}
+.oc-tour-dept-card:focus-visible {
+  outline: 2px solid var(--dept-color, var(--oc-tour-accent));
+  outline-offset: 2px;
+}
+.oc-tour-dept-card--done {
+  border-color: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 30%, transparent);
 }
 
-.oc-tour-dept-header {
-  font-size: 15px;
+.oc-tour-dept-icon {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.oc-tour-dept-label {
+  font: 600 13px/1 system-ui, sans-serif;
+  color: var(--oc-tour-text);
+}
+
+.oc-tour-dept-desc {
+  font: 400 11px/1.3 system-ui, sans-serif;
+  color: var(--oc-tour-muted);
+  opacity: 0.8;
+}
+
+.oc-tour-dept-agents {
+  font: 500 10px/1 system-ui, sans-serif;
+  color: var(--dept-color, var(--oc-tour-accent));
+  opacity: 0.7;
+  margin-top: 2px;
 }
 
 .oc-tour-dept-check {
@@ -163,30 +207,57 @@
   color: var(--dept-color, var(--oc-tour-accent));
 }
 
-/* --- Done view department list --- */
-#oc-tour-done-depts {
-  display: flex;
-  flex-wrap: wrap;
+/* --- Done view: 2x3 grid --- */
+#oc-tour-done-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  justify-content: center;
   margin-bottom: 20px;
 }
 
-.oc-tour-done-dept {
-  font: 500 13px/1 system-ui, sans-serif;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(30, 41, 59, 0.6);
+.oc-tour-done-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.4);
   border: 1px solid var(--oc-tour-border);
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+.oc-tour-done-cell--done {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 35%, transparent);
+  background: color-mix(in srgb, var(--dept-color, var(--oc-tour-accent)) 8%, rgba(30, 41, 59, 0.5));
 }
 
-/* --- Progress dots --- */
+.oc-tour-done-icon { font-size: 20px; line-height: 1; }
+.oc-tour-done-label { font: 600 11px/1 system-ui, sans-serif; color: var(--oc-tour-text); }
+.oc-tour-done-check { font-size: 11px; color: var(--dept-color, var(--oc-tour-accent)); }
+.oc-tour-done-pending { font-size: 11px; color: var(--oc-tour-muted); opacity: 0.5; }
+
+/* --- Progress indicator --- */
 #oc-tour-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.oc-tour-progress-label {
+  font: 500 12px/1 system-ui, sans-serif;
+  opacity: 0.8;
+}
+
+.oc-tour-dots {
   display: flex;
   gap: 8px;
   justify-content: center;
-  margin-bottom: 16px;
 }
+
 .oc-tour-dot {
   width: 8px;
   height: 8px;
@@ -212,10 +283,43 @@
 }
 .oc-tour-btn--skip:hover { opacity: 1; }
 
+/* --- Toast notification --- */
+#oc-tour-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 2147483002;
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--oc-tour-border);
+  color: var(--oc-tour-text);
+  font: 500 13px/1 system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+#oc-tour-toast[data-visible="true"] {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* --- Animations --- */
 @keyframes oc-tour-fadein {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+  #oc-tour-dialog { animation: none; }
+  .oc-tour-btn,
+  .oc-tour-btn--try,
+  .oc-tour-dept-card,
+  .oc-tour-dot,
+  .oc-tour-done-cell,
+  #oc-tour-toast { transition: none; }
 }
 
 /* --- Mobile --- */
@@ -229,5 +333,6 @@
   #oc-tour-step-title { font-size: 20px; }
   #oc-tour-step-subtitle { font-size: 14px; }
   #oc-tour-button { top: 12px; right: 12px; }
-  #oc-tour-dept-grid { grid-template-columns: repeat(2, 1fr); }
+  #oc-tour-dept-grid,
+  #oc-tour-done-grid { grid-template-columns: repeat(2, 1fr); }
 }
