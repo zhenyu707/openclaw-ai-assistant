@@ -1,4 +1,4 @@
-const TOUR_VERSION = '2026-03-20-v5.2';
+const TOUR_VERSION = '2026-03-21-v6';
 const STATE_KEY = `openclaw.getStarted.${TOUR_VERSION}`;
 const SETTINGS_KEY = 'openclaw.control.settings.v1';
 const OPEN_DELAY_MS = 900;
@@ -122,7 +122,7 @@ function deleteTourStateKey(key) {
 
 function appRoot() {
   const host = document.querySelector('openclaw-app');
-  return host?.shadowRoot || host || null;
+  return host?.shadowRoot ?? host ?? null;
 }
 
 function getExploredDepts() { return loadTourState().exploredDepts || []; }
@@ -203,14 +203,25 @@ function tryPrompt(text, agentId) {
   closeTour();
   if (agentId) {
     switchToAgent(agentId);
-    // Reload forces the app to re-read settings with the new session key,
-    // since same-tab localStorage writes don't fire the storage event.
-    saveTourState({ pendingPrompt: text });
-    window.location.reload();
+    // Dispatch a synthetic storage event so the app re-reads settings
+    // without a page reload (reloads break WebSocket auth).
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: SETTINGS_KEY,
+      newValue: localStorage.getItem(SETTINGS_KEY),
+      url: window.location.href,
+      storageArea: localStorage,
+    }));
+    // Give the app time to reconnect with the new session, then inject prompt
+    showToast('Switching to ' + (departments.find(d => d.agentId === agentId)?.label || agentId) + '...');
+    setTimeout(() => {
+      injectPromptWithRetry(text, 0);
+      injectDeptIndicator();
+    }, 800);
     return;
   }
   injectPrompt(text);
 }
+
 
 function injectPrompt(text) {
   const r = appRoot();
@@ -397,6 +408,7 @@ function renderDone(dialog) {
     <div id="oc-tour-icon">\u2705</div>
     <h2 id="oc-tour-step-title">You're All Set</h2>
     <p id="oc-tour-step-subtitle">Use the sidebar to navigate between departments. The <strong>?</strong> button is always in the top-right if you want this tour again.</p>
+    <p id="oc-tour-step-subtitle" style="font-size:12px;margin-top:-16px;opacity:0.7">Tip: Toggle <strong>Show cron sessions</strong> in the chat toolbar to hide heartbeat messages.</p>
     <div id="oc-tour-done-grid">${grid}</div>
     <div id="oc-tour-actions">
       <button class="oc-tour-btn oc-tour-btn--primary" id="oc-tour-close" type="button">Get Started</button>
@@ -499,6 +511,45 @@ function handleKeydown(e) {
 
 // --- Initialization ---
 
+// --- Department indicator bar ---
+
+function getDeptForAgentId(agentId) {
+  return departments.find(d => d.agentId === agentId) || null;
+}
+
+function getCurrentAgentId() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return null;
+    const settings = JSON.parse(raw);
+    const sk = settings.sessionKey || settings.lastActiveSessionKey || '';
+    // Session key format: "agent:<agentId>:main" or just "<agentId>"
+    const match = sk.match(/^agent:([^:]+):/);
+    return match ? match[1] : sk;
+  } catch { return null; }
+}
+
+function injectDeptIndicator() {
+  const agentId = getCurrentAgentId();
+  const dept = agentId ? getDeptForAgentId(agentId) : null;
+  // Remove any existing indicator
+  const existing = document.getElementById('oc-tour-dept-indicator');
+  if (existing) existing.remove();
+  if (!dept) return;
+
+  const bar = document.createElement('div');
+  bar.id = 'oc-tour-dept-indicator';
+  bar.style.setProperty('--dept-color', dept.color);
+  bar.innerHTML = `<span class="oc-dept-ind-icon">${dept.icon}</span>
+    <span class="oc-dept-ind-label">${dept.label}</span>
+    <span class="oc-dept-ind-agent">${agentId}</span>`;
+  document.body.appendChild(bar);
+}
+
+// --- Hide cron sessions by default ---
+
+// --- Initialization ---
+
 function installWhenReady() {
   if (state.initialized) return;
   const root = appRoot();
@@ -509,14 +560,12 @@ function installWhenReady() {
   buildUi();
 
   const stored = loadTourState();
-  // Check for pending prompt from a "Try it" agent-switch reload
-  if (stored.pendingPrompt) {
-    const prompt = stored.pendingPrompt;
-    deleteTourStateKey('pendingPrompt');
-    injectPromptWithRetry(prompt, 0);
-  } else if (!stored.seen && !stored.completed) {
+  if (!stored.seen && !stored.completed) {
     window.setTimeout(() => openTour({ resetToStart: true }), OPEN_DELAY_MS);
   }
+
+  // Always show department indicator when an agent session is active
+  injectDeptIndicator();
 
   document.addEventListener('keydown', handleKeydown);
 }
